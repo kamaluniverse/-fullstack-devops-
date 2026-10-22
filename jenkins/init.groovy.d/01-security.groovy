@@ -15,7 +15,10 @@ if (passFile.exists()) {
     try {
         realm.createAccount('admin', password)
     } catch (Exception ignored) {
-        // Account already exists; keep the existing password.
+        // Account already exists: force it back to the password in the file so
+        // re-running the bootstrap is deterministic.
+        def admin = realm.getAllUsers().find { it.id == 'admin' }
+        admin?.addProperty(HudsonPrivateSecurityRealm.Details.fromPlainPassword(password))
     }
 
     instance.setSecurityRealm(realm)

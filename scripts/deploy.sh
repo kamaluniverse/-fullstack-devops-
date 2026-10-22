@@ -32,13 +32,15 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 load_env() {
   [[ -f .env ]] || fail ".env not found — copy .env.example to .env and fill it in"
+  # An explicitly supplied TAG (e.g. from CI) must win over the value in .env.
+  local preset_tag="${TAG:-}"
   set -a
   # shellcheck disable=SC1091
   source ./.env
   set +a
 
   IMAGE_SOURCE="${IMAGE_SOURCE:-build}"
-  TAG="${TAG:-local}"
+  TAG="${preset_tag:-${TAG:-local}}"
   COMPOSE="docker compose -f ${COMPOSE_FILE:-compose.yaml}"
   : "${MONGO_USER:?MONGO_USER is required}"
   : "${MONGO_PASSWORD:?MONGO_PASSWORD is required}"
@@ -105,6 +107,7 @@ wait_for_health() {
 
 do_deploy() {
   load_env
+  log "Deploying tag ${TAG} (IMAGE_SOURCE=${IMAGE_SOURCE}, COMPOSE=${COMPOSE})"
   validate_compose
   save_previous
 

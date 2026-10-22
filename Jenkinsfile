@@ -103,6 +103,7 @@ pipeline {
                         }
 
                         # Pin the host key on first use; never disable verification.
+                        mkdir -p ~/.ssh && chmod 700 ~/.ssh
                         ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
                         scp -o StrictHostKeyChecking=yes compose.app.yaml "$APP_USER@$HOST:$APP_DIR/"
