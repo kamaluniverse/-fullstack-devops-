@@ -12,9 +12,9 @@ pipeline {
         ECR_REPO_PREFIX = 'proshop'
         APP_USER        = 'ubuntu'
         APP_DIR         = '/opt/proshop'
-        // Placeholder — override with the APP_HOST_OVERRIDE parameter (or edit
-        // this default) after provisioning. Never commit real secrets here.
-        APP_HOST        = 'REPLACE_WITH_APP_PUBLIC_IP'
+        // Deployment target. Not a secret; override per-environment with the
+        // APP_HOST_OVERRIDE parameter. Never commit credentials here.
+        APP_HOST        = '100.62.16.189'
     }
 
     parameters {
