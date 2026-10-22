@@ -51,5 +51,9 @@ set_output MONGO_SG_ID "$MONGO_SG"
 allow "$MONGO_SG" --protocol tcp --port 27017 --source-group "$APP_SG"
 allow "$MONGO_SG" --protocol tcp --port 22 --source-group "$APP_SG"
 
+# The CI server deploys over SSH; allow it explicitly instead of widening the
+# admin CIDR rule.
+allow "$APP_SG" --protocol tcp --port 22 --source-group "$JENKINS_SG"
+
 log "Security groups ready"
 printf 'APP_SG=%s\nJENKINS_SG=%s\nMONGO_SG=%s\n' "$APP_SG" "$JENKINS_SG" "$MONGO_SG"
