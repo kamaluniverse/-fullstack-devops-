@@ -22,6 +22,9 @@ uploads/
 infra/aws-outputs.env
 infra/*.pem
 .last-good-image
+.previous-image
+backend/uploads/
+uploads/
 
 # --- logs & OS noise ---
 *.log

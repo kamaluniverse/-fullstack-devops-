@@ -90,7 +90,8 @@ sh /tmp/get-docker.sh
 systemctl enable --now docker
 usermod -aG docker ubuntu
 
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key \
+# The 2023 signing key expired in March 2026; use the current key.
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key \
   | tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
 echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
   > /etc/apt/sources.list.d/jenkins.list

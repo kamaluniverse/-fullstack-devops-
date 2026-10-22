@@ -20,8 +20,10 @@ cd "$ROOT_DIR"
 ACTION="${1:-deploy}"
 # compose.yaml           -> all-in-one (local / learning single host)
 # compose.app.yaml       -> production app host (no MongoDB; DB is remote)
-COMPOSE="docker compose -f ${COMPOSE_FILE:-compose.yaml}"
+# COMPOSE_FILE is read from .env inside load_env(), so keep a safe default here.
+COMPOSE="docker compose"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1/api/health}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
 LAST_GOOD_FILE=".last-good-image"
 PREVIOUS_FILE=".previous-image"
 
@@ -37,6 +39,7 @@ load_env() {
 
   IMAGE_SOURCE="${IMAGE_SOURCE:-build}"
   TAG="${TAG:-local}"
+  COMPOSE="docker compose -f ${COMPOSE_FILE:-compose.yaml}"
   : "${MONGO_USER:?MONGO_USER is required}"
   : "${MONGO_PASSWORD:?MONGO_PASSWORD is required}"
   : "${MONGO_DB:?MONGO_DB is required}"
@@ -106,6 +109,14 @@ do_deploy() {
   save_previous
 
   if [[ "$IMAGE_SOURCE" == "ecr" ]]; then
+    log "Authenticating to ECR"
+    if command -v aws >/dev/null 2>&1; then
+      aws ecr get-login-password --region "$AWS_REGION" \
+        | docker login --username AWS --password-stdin "$ECR_REGISTRY" >/dev/null \
+        || fail "ECR docker login failed"
+    else
+      fail "aws CLI is required for IMAGE_SOURCE=ecr"
+    fi
     log "Pulling images for tag $TAG from ECR"
     $COMPOSE pull backend frontend || fail "image pull failed"
     $COMPOSE up -d --no-build --remove-orphans || { print_diagnostics; fail "compose up failed"; }
