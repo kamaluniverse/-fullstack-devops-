@@ -1,0 +1,30 @@
+# --- secrets & local state ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+id_rsa*
+id_ed25519*
+
+# --- dependencies & build output ---
+node_modules/
+dist/
+.vite/
+coverage/
+
+# --- uploads (runtime data, never commit) ---
+backend/uploads/
+uploads/
+
+# --- AWS / deployment artefacts ---
+infra/aws-outputs.env
+infra/*.pem
+.last-good-image
+
+# --- logs & OS noise ---
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3 @@
+TAG=local
+BACKEND_IMAGE=proshop-backend:local
+FRONTEND_IMAGE=proshop-frontend:local
