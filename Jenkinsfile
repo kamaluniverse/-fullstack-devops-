@@ -11,9 +11,11 @@ pipeline {
         ECR_REPO_PREFIX = 'proshop'
         APP_USER        = 'ubuntu'
         APP_DIR         = '/opt/proshop'
-        // Deployment target. Not a secret; override per-environment with the
-        // APP_HOST_OVERRIDE parameter. Never commit credentials here.
-        APP_HOST        = '100.62.16.189'
+        // Deployment target as seen from the Jenkins host. This is the app
+        // server's private IP inside the VPC (the public Elastic IP is for end
+        // users and does not hairpin reliably from inside the VPC). Override
+        // per-environment with APP_HOST_OVERRIDE; never commit secrets here.
+        APP_HOST        = '10.0.1.84'
     }
 
     parameters {
