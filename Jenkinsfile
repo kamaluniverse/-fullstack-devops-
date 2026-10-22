@@ -107,7 +107,7 @@ pipeline {
                         mkdir -p ~/.ssh && chmod 700 ~/.ssh
                         ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-                        scp -o StrictHostKeyChecking=yes compose.app.yaml "$APP_USER@$HOST:$APP_DIR/"
+                        scp -o StrictHostKeyChecking=yes compose.yaml "$APP_USER@$HOST:$APP_DIR/"
                         scp -o StrictHostKeyChecking=yes nginx/default.conf "$APP_USER@$HOST:$APP_DIR/nginx/"
                         scp -o StrictHostKeyChecking=yes scripts/deploy.sh scripts/health-check.sh "$APP_USER@$HOST:$APP_DIR/scripts/"
 

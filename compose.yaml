@@ -1,25 +1,41 @@
-# Docker Compose stack for the ProShop MERN app.
+# ProShop — single Compose file for every deployment target.
 #
-# Public surface: only Nginx (port 80) is published to the host.
-# MongoDB and the backend are reachable only on the internal Docker network.
+# One service definition per role; what differs per host is a profile plus a
+# couple of environment variables, instead of three near-duplicate files.
 #
-# Usage:
-#   cp .env.example .env   # then edit
-#   docker compose up -d --build
+#   dev  all-in-one (VPS / local):  docker compose --profile dev up -d --build
+#   app  EC2 app host:              docker compose --profile app up -d
+#   db   EC2 mongo host:            docker compose --profile db  up -d
+#
+# Or pin the profile per host in .env:   COMPOSE_PROFILES=app
+#
+# Target differences expressed as env vars:
+#   MONGO_HOST        backend's Mongo host      dev: mongo       app host: 10.0.2.103
+#   MONGO_BIND        mongo's published bind    dev: 127.0.0.1   db host:  10.0.2.103
+#   BACKEND_IMAGE /   image refs pulled on the   set on the app host (ECR refs);
+#   FRONTEND_IMAGE    app host                   dev falls back to :local tags
+#
+# Public surface: only Nginx (port 80) is published on dev/app hosts. MongoDB is
+# published on loopback in dev and on the private IP on the db host; never on
+# 0.0.0.0.
 
 services:
   mongo:
     image: mongo:7
+    profiles: ["dev", "db"]
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DB}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?MONGO_USER is required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-proshop}
     volumes:
       - mongo-data:/data/db
+    ports:
+      # dev: loopback only (Compass can attach directly, never public).
+      # db host: MONGO_BIND=10.0.2.103 so only the app host can reach it.
+      - "${MONGO_BIND:-127.0.0.1}:27017:27017"
     networks:
       - app-network
-    # No published ports: the database is only reachable on app-network.
     healthcheck:
       test:
         [
@@ -33,6 +49,7 @@ services:
 
   backend:
     image: ${BACKEND_IMAGE:-proshop-backend:local}
+    profiles: ["dev", "app"]
     build:
       context: ./backend
     restart: unless-stopped
@@ -42,16 +59,18 @@ services:
       NODE_ENV: production
       PORT: 5000
       HOST: 0.0.0.0
-      MONGO_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
       UPLOAD_DIR: /app/uploads
+      MONGO_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST:-mongo}:27017/${MONGO_DB}?authSource=admin
     volumes:
       - uploads-data:/app/uploads
     depends_on:
+      # Ordered startup in dev; on the app host there is no local Mongo, so the
+      # dependency is optional rather than an error.
       mongo:
         condition: service_healthy
+        required: false
     networks:
       - app-network
-    # No published ports: only Nginx talks to the backend.
     healthcheck:
       test:
         [
@@ -67,6 +86,7 @@ services:
 
   frontend:
     image: ${FRONTEND_IMAGE:-proshop-frontend:local}
+    profiles: ["dev", "app"]
     build:
       context: ./frontend
       args:
@@ -87,6 +107,7 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
+    profiles: ["dev", "app"]
     restart: unless-stopped
     ports:
       - "80:80"

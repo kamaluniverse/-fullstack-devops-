@@ -222,9 +222,7 @@ commit and every deploy is a specific, pullable artefact.
 │   ├── bootstrap-app-host.sh fresh Ubuntu → Docker host
 │   └── aws/                  idempotent provisioning + teardown
 ├── jenkins/init.groovy.d/    admin realm, credentials, pipeline job
-├── compose.yaml              local all-in-one
-├── compose.app.yaml          production app host (no DB)
-├── compose.mongo.yaml        production MongoDB host
+├── compose.yaml              single compose file (profiles: dev | app | db)
 ├── Jenkinsfile               declarative pipeline
 └── .env.example              every supported variable
 ```
@@ -289,7 +287,10 @@ Copy `.env.example` → `.env`. Nothing sensitive is committed: `.env`,
 | `CLOUDINARY_*` | no | Remote image hosting; unset → local disk |
 | `IMAGE_SOURCE` | no | `build` (default) or `ecr` |
 | `ECR_REGISTRY` / `ECR_REPO_PREFIX` / `TAG` | ECR only | Registry, repo prefix (`proshop`), image tag |
-| `COMPOSE_FILE` | no | `compose.yaml` (local) or `compose.app.yaml` (production) |
+| `COMPOSE_PROFILES` | no | `dev` (all-in-one), `app` (app host), or `db` (MongoDB host) |
+| `MONGO_BIND` | no | Address MongoDB is published on: `127.0.0.1` (dev) or the db host's private IP |
+| `MONGO_HOST` | no | Mongo hostname the backend uses: `mongo` (dev) or the db host's private IP |
+| `COMPOSE_FILE` | no | Defaults to `compose.yaml`; there is only one compose file |
 
 > `TAG` supplied by the CI environment takes precedence over the value in `.env`,
 > so a pipeline can deploy an arbitrary build without editing server files.
@@ -377,8 +378,9 @@ Wait 2–3 minutes for cloud-init (Docker, Node, Jenkins).
 ### 1. MongoDB host (private subnet)
 
 ```bash
-scp compose.mongo.yaml .env ubuntu@<mongo-private-ip>:/opt/proshop/   # via jump host
-ssh ubuntu@<mongo-private-ip> 'cd /opt/proshop && docker compose -f compose.mongo.yaml up -d'
+# .env on this host: COMPOSE_PROFILES=db, MONGO_BIND=<mongo-private-ip>
+scp compose.yaml .env ubuntu@<mongo-private-ip>:/opt/proshop/   # via jump host
+ssh ubuntu@<mongo-private-ip> 'cd /opt/proshop && docker compose --profile db up -d'
 ```
 
 Result: `mongo:7` healthy, port 27017 bound on the host, reachable only from the
@@ -404,9 +406,9 @@ Jenkins does this automatically; the manual path is for bootstrapping.
 
 ```bash
 # On the app server (/opt/proshop)
-cp .env.example .env     # MONGO_URI=mongodb://user:pass@10.0.2.103:27017/proshop?authSource=admin
+cp .env.example .env     # COMPOSE_PROFILES=app, MONGO_HOST=10.0.2.103
                          # IMAGE_SOURCE=ecr, ECR_REGISTRY=..., ECR_REPO_PREFIX=proshop
-                         # COMPOSE_FILE=compose.app.yaml, TAG=<sha>
+                         # TAG=<sha>
 
 ./scripts/deploy.sh      # validates, logs in to ECR, pulls, waits for health
 ./scripts/health-check.sh
@@ -422,11 +424,12 @@ cd /opt/proshop
 set -a && . ./.env && set +a
 export BACKEND_IMAGE="${ECR_REGISTRY}/${ECR_REPO_PREFIX}/backend:${TAG}"
 export FRONTEND_IMAGE="${ECR_REGISTRY}/${ECR_REPO_PREFIX}/frontend:${TAG}"
-docker compose -f compose.app.yaml exec -T backend npm run seed:admin
+docker compose --profile app exec -T backend npm run seed:admin
 ```
 
-(The two image variables are required because `compose.app.yaml` uses `:?`
-guards to prevent an accidental empty tag.)
+(The two image variables are required because the backend/frontend image refs are
+read from `BACKEND_IMAGE` / `FRONTEND_IMAGE`; `deploy.sh` exports both from
+`.env` and `TAG`.)
 
 ---
 
@@ -576,13 +579,13 @@ Until these steps are completed, HTTPS genuinely does not work.
 
 ```bash
 # On the MongoDB host
-docker compose -f compose.mongo.yaml exec -T mongo \
+docker compose --profile db exec -T mongo \
   mongodump --username "$MONGO_USER" --password "$MONGO_PASSWORD" \
   --authenticationDatabase admin --db proshop --archive --gzip \
   > /opt/proshop/backup-$(date +%F).gz
 
 # Restore
-docker compose -f compose.mongo.yaml exec -T mongo \
+docker compose --profile db exec -T mongo \
   mongorestore --username "$MONGO_USER" --password "$MONGO_PASSWORD" \
   --authenticationDatabase admin --archive --gzip --drop \
   < /opt/proshop/backup-2026-10-22.gz

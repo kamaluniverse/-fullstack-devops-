@@ -18,9 +18,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 ACTION="${1:-deploy}"
-# compose.yaml           -> all-in-one (local / learning single host)
-# compose.app.yaml       -> production app host (no MongoDB; DB is remote)
-# COMPOSE_FILE is read from .env inside load_env(), so keep a safe default here.
+# compose.yaml is the only compose file; the target is selected by profile in
+# .env (COMPOSE_FILE is read from .env inside load_env(), so keep a safe default):
+#   COMPOSE_PROFILES=dev -> all-in-one (local / learning single host)
+#   COMPOSE_PROFILES=app -> production app host (no MongoDB; DB is remote)
+#   COMPOSE_PROFILES=db  -> production MongoDB host
 COMPOSE="docker compose"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1/api/health}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
